@@ -119,8 +119,11 @@
         </style>
     </head>
     <body class="bg-[#FAF9F6] text-[#1C1C1C] min-h-screen flex flex-col">
-        <!-- Header -->
-        <header class="bg-[#EFEDE8] shadow-sm">
+        <!-- Navbar Placeholder (filled by JS if logged in) -->
+        <div id="navbar-placeholder"></div>
+
+        <!-- Header (only shown when not logged in) -->
+        <header class="bg-white shadow-sm">
             <div class="container mx-auto px-4 py-3 flex justify-between items-center">
                 <h1 class="text-3xl font-extrabold text-[#1C1C1C]">Meal<span class="text-[#FF9800]">Flow</span></h1>
                 <nav class="space-x-4">
@@ -168,13 +171,9 @@
                 </p>
             </div>
 
-            <!-- Right: Overlapping Circles -->
-            <div class="md:w-1/2 flex justify-center items-center relative">
-                <div class="circle-container">
-                    <div class="circle circle-large circle-red"><i class="fa-solid fa-microchip"></i></div>
-                    <div class="circle circle-medium circle-green"><i class="fa-solid fa-apple-whole"></i></div>
-                    <div class="circle circle-small circle-blue"><i class="fa-solid fa-people-roof"></i></div>
-                </div>
+            <!-- Right: Hero Image -->
+            <div class="md:w-1/2 flex justify-center items-center">
+                <img src="assets/hero.png" alt="MealFlow Hero" class="w-full max-w-md h-auto rounded-lg" />
             </div>
         </main>
 

@@ -78,8 +78,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- NAVBAR INJECTION & UI ---
-    // Only load navbar if on a protected page (not index.html)
-    if (page !== 'index.html' && page !== '') {
+    // Load navbar on protected pages and index.html if logged in
+    if (getCurrentUserEmail()) {
+        loadNavbar();
+    } else if (page !== 'index.html' && page !== '') {
         loadNavbar();
     }
 
@@ -109,8 +111,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
         const mobileMenuBtn = document.getElementById('mobile-menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
-        const mobileMenuIcon = document.getElementById('mobile-menu-icon'); // This is now a FontAwesome icon
+        const mobileMenuIcon = document.getElementById('mobile-menu-icon');
         const navLinks = document.querySelectorAll('.nav-link');
+        const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
 
         // --- User Info ---
         if (user) {
@@ -134,13 +137,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // --- Active Link Highlighting ---
+        // --- Desktop Active Link Highlighting (underline) ---
         navLinks.forEach((link) => {
             if (link.getAttribute('data-page') === page) {
                 link.classList.add('text-[#FF9800]', 'border-b-2', 'border-[#FF9800]');
                 link.classList.remove('text-gray-600');
             }
         });
+
+        // --- Mobile Active Link Highlighting (colored tab/background) ---
+        mobileNavLinks.forEach((link) => {
+            if (link.getAttribute('data-page') === page) {
+                link.classList.add('bg-[#FFF3E0]', 'text-[#FF9800]', 'font-medium');
+                link.classList.remove('text-gray-600');
+            }
+        });
+
+        // Hide header on index.html when logged in (navbar is shown instead)
+        if ((page === 'index.html' || page === '') && user) {
+            const header = document.querySelector('header');
+            if (header) {
+                header.classList.add('hidden');
+            }
+        }
 
         // FontAwesome is linked in the HTML directly, no JS rendering needed here
     }
@@ -149,12 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. HOME / LOGIN PAGE (index.html)
     // ===================================
     function initHomePage() {
-        // If a user is already logged in, redirect them to the family page.
-        if (getCurrentUserEmail()) {
-            window.location.href = 'family.html';
-            return;
-        }
-
         const authModal = document.getElementById('auth-modal');
         const showLoginBtn = document.getElementById('show-login-btn');
         const showSignupBtn = document.getElementById('show-signup-btn');
@@ -619,7 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <h3 class="text-2xl font-bold mb-4">Ingredients Used</h3>
                                         <ul class="space-y-2">${ingredientsUsed.map((ing) => `<li class="flex items-center"><i class="w-5 h-5 text-green-500 mr-2 fas fa-check-circle"></i><strong>${ing.ingredient}</strong></li>`).join('')}</ul>
                                     </div>
-                                    ${servingNotes ? `<div class="accent-box-orange"><h3 class="text-2xl font-bold mb-4 accent-orange">Serving Notes</h3><p>${servingNotes}</p></div>` : ''}
                                 </div>
                                 <div class="space-y-8">
                                     <div class="collapsible-section">
@@ -631,7 +643,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                             ${steps.map((step, i) => `<div class="flex"><div class="font-bold text-orange-500 mr-4">${i + 1}.</div><p>${step}</p></div>`).join('')}
                                         </div>
                                     </div>
-                                     ${tips && tips.length > 0 ? `<div class="accent-box-blue"><h3 class="text-2xl font-bold mb-4 accent-blue">Chef's Tips</h3><ul class="list-disc list-inside space-y-2">${tips.map((tip) => `<li>${tip}</li>`).join('')}</ul></div>` : ''}
+                                </div>
+                            </div>
+                            
+                            <!-- Serving Notes & Tips (appears after instructions on all screen sizes) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 mt-8">
+                                <div>
+                                    ${servingNotes ? `<div class="accent-box-orange"><h3 class="text-2xl font-bold mb-4 accent-orange">Serving Notes</h3><p>${servingNotes}</p></div>` : ''}
+                                </div>
+                                <div>
+                                    ${tips && tips.length > 0 ? `<div class="accent-box-blue"><h3 class="text-2xl font-bold mb-4 accent-blue">Chef's Tips</h3><ul class="list-disc list-inside space-y-2">${tips.map((tip) => `<li>${tip}</li>`).join('')}</ul></div>` : ''}
                                 </div>
                             </div>
                         </div>

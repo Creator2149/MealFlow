@@ -37,20 +37,47 @@
 
         <!-- Mobile Menu Toggle -->
         <div class="md:hidden flex items-center">
-            <button id="mobile-menu-btn" class="p-2 rounded-md focus:outline-none">
-                <i id="mobile-menu-icon" class="fa-solid fa-bars"></i>
+            <button id="mobile-menu-btn" class="p-2 rounded-md focus:outline-none text-[#1C1C1C]">
+                <i id="mobile-menu-icon" class="fa-solid fa-bars text-[#1C1C1C]"></i>
             </button>
         </div>
     </div>
 
     <!-- Mobile Menu -->
-    <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
-        <div class="px-4 py-3 space-y-2">
-            <div class="font-medium text-gray-700" id="mobile-user-name">Guest</div>
-            <a href="family.html" class="block nav-link text-gray-600 py-2" data-page="family.html">Family</a>
-            <a href="dashboard.html" class="block nav-link text-gray-600 py-2" data-page="dashboard.html">Pantry</a>
-            <a href="recipe.html" class="block nav-link text-gray-600 py-2" data-page="recipe.html">Recipe</a>
-            <button id="mobile-logout-btn" class="w-full text-left bg-[#FF9800] text-white mt-2 px-3 py-2 rounded-lg">
+    <div id="mobile-menu" class="md:hidden hidden bg-[#FAFAF8] border-t">
+        <!-- User Greeting -->
+        <div class="px-4 py-3 border-b bg-white">
+            <p class="text-sm font-medium text-gray-700">Hi, <span id="mobile-user-name">Guest</span>!</p>
+        </div>
+
+        <!-- Navigation Links -->
+        <div class="px-4 py-2 space-y-1">
+            <a
+                href="family.html"
+                class="block mobile-nav-link text-gray-600 px-3 py-2 rounded-lg transition-colors"
+                data-page="family.html"
+                >Family</a
+            >
+            <a
+                href="dashboard.html"
+                class="block mobile-nav-link text-gray-600 px-3 py-2 rounded-lg transition-colors"
+                data-page="dashboard.html"
+                >Pantry</a
+            >
+            <a
+                href="recipe.html"
+                class="block mobile-nav-link text-gray-600 px-3 py-2 rounded-lg transition-colors"
+                data-page="recipe.html"
+                >Recipe</a
+            >
+        </div>
+
+        <!-- Logout Button -->
+        <div class="px-4 py-3 border-t">
+            <button
+                id="mobile-logout-btn"
+                class="w-full bg-[#FF9800] text-white font-medium px-3 py-2 rounded-lg hover:bg-[#FB8C00] transition-colors"
+            >
                 Logout
             </button>
         </div>
