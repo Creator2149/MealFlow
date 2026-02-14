@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MealFlow - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/heroicons@2.1.3/24/solid/index.js"></script>
+    <script src="app.js" defer></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #FAF9F6;
+            color: #1C1C1C;
+        }
+        .ingredient-checkbox-label.selected {
+            background-color: #FF9800;
+            color: white;
+            border-color: #FF9800;
+        }
+        .meal-type-label.selected {
+            background-color: #7EC8E3;
+            color: white;
+            border-color: #7EC8E3;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="navbar-placeholder"></div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 sm:px-6 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Ingredient Selection -->
+            <div class="lg:col-span-2">
+                <div class="bg-white p-6 rounded-2xl shadow-lg">
+                    <h2 class="text-3xl font-bold mb-6">What's in Your Pantry?</h2>
+                    <input type="search" id="ingredient-search" placeholder="Search for an ingredient..." class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF9800]">
+                    
+                    <div id="ingredient-list-container" class="space-y-6 mt-6 max-h-[65vh] overflow-y-auto pr-4 -mr-4">
+                        <!-- JS will populate this section -->
+                        <p class="text-gray-500">Loading ingredients...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Meal Type & Generate Button -->
+            <div class="lg:col-span-1">
+                <div class="sticky top-28 space-y-8">
+                    <!-- Meal Type Selector -->
+                    <div class="bg-white p-6 rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold mb-4">What meal are we making?</h3>
+                        <div id="meal-type-selector" class="grid grid-cols-2 gap-3">
+                            <label class="meal-type-label cursor-pointer p-4 border rounded-lg text-center font-semibold transition-all">
+                                <input type="radio" name="mealType" value="Breakfast" class="sr-only">
+                                <span>🍳 Breakfast</span>
+                            </label>
+                            <label class="meal-type-label cursor-pointer p-4 border rounded-lg text-center font-semibold transition-all">
+                                <input type="radio" name="mealType" value="Lunch" class="sr-only">
+                                <span>☀️ Lunch</span>
+                            </label>
+                            <label class="meal-type-label cursor-pointer p-4 border rounded-lg text-center font-semibold transition-all">
+                                <input type="radio" name="mealType" value="Dinner" class="sr-only" checked>
+                                <span>🌙 Dinner</span>
+                            </label>
+                             <label class="meal-type-label cursor-pointer p-4 border rounded-lg text-center font-semibold transition-all">
+                                <input type="radio" name="mealType" value="Snack" class="sr-only">
+                                <span>🍎 Snack</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Selected Ingredients -->
+                    <div class="bg-white p-6 rounded-2xl shadow-lg">
+                        <h3 class="text-xl font-bold mb-4">Your Selections</h3>
+                        <div id="selected-ingredients-preview" class="min-h-[100px] max-h-[25vh] overflow-y-auto">
+                            <p class="text-gray-400">Select ingredients to see them here.</p>
+                        </div>
+                    </div>
+
+                     <!-- Generate Button -->
+                    <a href="recipe.html" id="generate-link" class="block w-full text-center bg-[#FF9800] text-white font-bold py-4 px-8 rounded-lg shadow-lg hover:bg-[#FB8C00] text-2xl transition-all transform hover:scale-105">
+                        Generate Meal &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
