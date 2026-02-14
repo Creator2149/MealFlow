@@ -1,0 +1,58 @@
+<nav class="bg-white shadow-sm">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <!-- Logo -->
+        <a href="index.html" class="text-2xl font-extrabold text-[#1C1C1C]"
+            >Meal<span class="text-[#FF9800]">Flow</span></a
+        >
+
+        <!-- Desktop Nav Links -->
+        <div class="hidden md:flex items-center space-x-6">
+            <a
+                href="family.html"
+                class="nav-link text-gray-600 hover:text-[#FF9800] font-medium"
+                data-page="family.html"
+                >Family</a
+            >
+            <a
+                href="dashboard.html"
+                class="nav-link text-gray-600 hover:text-[#FF9800] font-medium"
+                data-page="dashboard.html"
+                >Pantry</a
+            >
+            <a
+                href="recipe.html"
+                class="nav-link text-gray-600 hover:text-[#FF9800] font-medium"
+                data-page="recipe.html"
+                >Recipe</a
+            >
+        </div>
+
+        <!-- Desktop User Info -->
+        <div class="hidden md:flex items-center space-x-4">
+            <span id="user-name" class="text-gray-700 font-medium">Guest</span>
+            <button id="logout-btn" class="bg-[#FF9800] text-white px-3 py-1 rounded-lg hover:bg-[#FB8C00]">
+                Logout
+            </button>
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <div class="md:hidden flex items-center">
+            <button id="mobile-menu-btn" class="p-2 rounded-md focus:outline-none">
+                <i id="mobile-menu-icon" class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
+        <div class="px-4 py-3 space-y-2">
+            <div class="font-medium text-gray-700" id="mobile-user-name">Guest</div>
+            <a href="family.html" class="block nav-link text-gray-600 py-2" data-page="family.html">Family</a>
+            <a href="dashboard.html" class="block nav-link text-gray-600 py-2" data-page="dashboard.html">Pantry</a>
+            <a href="recipe.html" class="block nav-link text-gray-600 py-2" data-page="recipe.html">Recipe</a>
+            <button id="mobile-logout-btn" class="w-full text-left bg-[#FF9800] text-white mt-2 px-3 py-2 rounded-lg">
+                Logout
+            </button>
+        </div>
+    </div>
+</nav>
