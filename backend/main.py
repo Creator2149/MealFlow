@@ -63,7 +63,7 @@ def get_recipe_from_groq(preprompt: str):
     try:
         chat_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": preprompt}],
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            model="moonshotai/kimi-k2-instruct",
         )
         return chat_completion.choices[0].message.content
     except Exception as e:
