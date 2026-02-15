@@ -38,15 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const setSessionPantry = (p) => sessionStorage.setItem(PANTRY_KEY, JSON.stringify(p));
 
-    // --- Global Language Helpers ---
-    const LANGUAGE_KEY = 'mealFlowLanguage';
-    const getGlobalLanguage = () => sessionStorage.getItem(LANGUAGE_KEY) || 'english';
-    const setGlobalLanguage = (lang) => {
-        sessionStorage.setItem(LANGUAGE_KEY, lang);
-        // Dispatch event to notify all listeners of language change
-        window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: lang } }));
-    };
-
     // Backend helper to fetch user and update session cache
     const fetchUserFromBackend = async (email) => {
         try {
@@ -110,24 +101,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return; // Stop further execution
     }
 
+    // --- NAVBAR INJECTION & UI ---
+    // Load navbar on protected pages and index.html if logged in
+    if (getCurrentUserEmail()) {
+        loadNavbar();
+    } else if (page !== 'index.html' && page !== '') {
+        loadNavbar();
+    }
+
     async function loadNavbar() {
         const navbarPlaceholder = document.getElementById('navbar-placeholder');
+        // Only load the navbar on pages that have the placeholder
         if (navbarPlaceholder) {
             try {
                 const response = await fetch('_navbar.html');
                 const navbarHTML = await response.text();
-                console.log('Fetched navbarHTML:', navbarHTML.substring(0, 500) + '...'); // Log first 500 chars
-
-                // Create a temporary div to parse the navbar HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = navbarHTML;
-
-                // Append children of the temporary div to the navbarPlaceholder
-                // This ensures the <nav> element and its contents are properly parsed
-                while (tempDiv.firstChild) {
-                    navbarPlaceholder.appendChild(tempDiv.firstChild);
-                }
-
+                navbarPlaceholder.innerHTML = navbarHTML;
                 setupNavbar();
             } catch (error) {
                 console.error('Error loading navbar:', error);
@@ -195,35 +184,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 header.classList.add('hidden');
             }
         }
-
-        // --- Language Toggle Setup ---
-        const currentLanguage = getGlobalLanguage();
-        const langBtns = document.querySelectorAll('.navbar-lang-btn');
-        const navbarPlaceholder = document.getElementById('navbar-placeholder'); // Re-get placeholder
-        if (navbarPlaceholder) {
-            const langBtnsInPlaceholder = navbarPlaceholder.querySelectorAll('.navbar-lang-btn');
-            console.log('Language buttons found (global query):', langBtns.length);
-            console.log('Language buttons found (in placeholder):', langBtnsInPlaceholder.length);
-        } else {
-            console.log('Navbar placeholder not found during setupNavbar.');
-        }
-
-        langBtns.forEach((btn) => {
-            if (btn.dataset.lang === currentLanguage) {
-                btn.classList.add('selected', 'bg-[#5BB0D9]', 'text-white');
-                btn.classList.remove('bg-gray-200', 'text-gray-800');
-            }
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.navbar-lang-btn').forEach((b) => {
-                    b.classList.remove('selected', 'bg-[#5BB0D9]', 'text-white');
-                    b.classList.add('bg-gray-200', 'text-gray-800');
-                });
-                e.target.classList.add('selected', 'bg-[#5BB0D9]', 'text-white');
-                e.target.classList.remove('bg-gray-200', 'text-gray-800');
-                setGlobalLanguage(e.target.dataset.lang);
-                console.log('Language changed to:', e.target.dataset.lang);
-            });
-        });
 
         // FontAwesome is linked in the HTML directly, no JS rendering needed here
     }
@@ -558,6 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mealTypeSelector = document.getElementById('meal-type-selector');
         const generateLink = document.getElementById('generate-link');
 
+        let currentLanguage = 'english'; // 'english', 'hinglish', 'hindi'
         let mostUsed = {}; // Will be populated from user data
 
         // Load most_used from user data
@@ -594,10 +555,42 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // Create language toggle if not already in HTML
+        const createLanguageToggle = () => {
+            const existingToggle = document.getElementById('language-toggle');
+            if (existingToggle) return;
+
+            const toggleDiv = document.createElement('div');
+            toggleDiv.id = 'language-toggle';
+            toggleDiv.className = 'flex gap-2 mb-6 flex-wrap';
+            toggleDiv.innerHTML = `
+                <button data-lang="english" class="lang-btn px-4 py-2 rounded-lg font-medium transition-colors selected bg-[#5BB0D9] text-white">English</button>
+                <button data-lang="hinglish" class="lang-btn px-4 py-2 rounded-lg font-medium transition-colors bg-gray-200 text-gray-800 hover:bg-gray-300">Hinglish</button>
+                <button data-lang="hindi" class="lang-btn px-4 py-2 rounded-lg font-medium transition-colors bg-gray-200 text-gray-800 hover:bg-gray-300">हिंदी</button>
+            `;
+
+            // Insert toggle before the search input
+            searchInput.parentElement.insertBefore(toggleDiv, searchInput);
+
+            // Add language toggle event listeners
+            document.querySelectorAll('.lang-btn').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.lang-btn').forEach((b) => {
+                        b.classList.remove('selected', 'bg-[#5BB0D9]', 'text-white');
+                        b.classList.add('bg-gray-200', 'text-gray-800');
+                    });
+                    e.target.classList.add('selected', 'bg-[#5BB0D9]', 'text-white');
+                    e.target.classList.remove('bg-gray-200', 'text-gray-800');
+                    currentLanguage = e.target.dataset.lang;
+                    renderIngredients(searchInput.value);
+                    renderPreview(); // Update ingredient names in preview
+                });
+            });
+        };
+
         const getIngredientName = (ingredient) => {
-            const lang = getGlobalLanguage();
-            if (lang === 'hinglish') return ingredient.hinglish_name;
-            if (lang === 'hindi') return ingredient.hindi_name;
+            if (currentLanguage === 'hinglish') return ingredient.hinglish_name;
+            if (currentLanguage === 'hindi') return ingredient.hindi_name;
             return ingredient.english_name;
         };
 
@@ -751,18 +744,13 @@ document.addEventListener('DOMContentLoaded', () => {
         (async () => {
             await loadMostUsed();
             injectRecentsIntoIngredients(); // Inject Recents as a normal section
+            createLanguageToggle();
             searchInput.addEventListener('input', () => renderIngredients(searchInput.value));
 
             mealTypeSelector.addEventListener('change', (e) => {
                 pantry.mealType = e.target.value;
                 setSessionPantry(pantry);
                 updateMealTypeSelection();
-            });
-
-            // Listen for global language changes
-            window.addEventListener('languageChanged', () => {
-                renderIngredients(searchInput.value);
-                renderPreview();
             });
 
             renderIngredients();
@@ -973,27 +961,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- PAGE INITIALIZATION ---
     // Call the appropriate init function depending on current page
     (async () => {
-        const currentPage = page || 'index.html';
-        const user = getCurrentUser(); // Get user state
-
-        // Load navbar if current page is not index.html (and not an empty string),
-        // or if the user is logged in (to display navbar on index.html for logged-in users).
-        if ((currentPage !== 'index.html' && currentPage !== '') || (user && (currentPage === 'index.html' || currentPage === ''))) {
-            await loadNavbar();
-        }
-
         // Ensure CSV is loaded before rendering dashboard
-        if (currentPage === 'dashboard.html') {
+        if (page === 'dashboard.html') {
             await loadIngredientsFromCSV();
         }
 
+        const currentPage = page || 'index.html';
         if (currentPage === '' || currentPage === 'index.html') {
             initHomePage();
         } else if (currentPage === 'family.html') {
+            loadNavbar();
             initFamilyPage();
         } else if (currentPage === 'dashboard.html') {
+            loadNavbar();
             initDashboardPage();
         } else if (currentPage === 'recipe.html') {
+            loadNavbar();
             initRecipePage();
         }
     })();
