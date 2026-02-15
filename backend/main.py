@@ -8,6 +8,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date
+from uuid import uuid4
+
+# Appwrite imports
+from appwrite.client import Client as AppwriteClient
+from appwrite.services.databases import Databases as AppwriteDatabases
+from appwrite.query import Query
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -45,6 +51,168 @@ class MealRequest(BaseModel):
     ingredients: List[str]
     mealType: str
     dayOfWeek: str
+
+
+# --- Appwrite Setup ---
+APPWRITE_ENDPOINT = os.getenv('AppwriteEndpoint')
+APPWRITE_PROJECT = os.getenv('AppwriteProjectID')
+APPWRITE_KEY = os.getenv('DatabaseAPI')
+APPWRITE_DB = os.getenv('DatabaseID')
+APPWRITE_COLLECTION = 'user_info'
+
+appwrite_client = None
+appwrite_db = None
+try:
+    appwrite_client = AppwriteClient()
+    appwrite_client.set_endpoint(APPWRITE_ENDPOINT)
+    appwrite_client.set_project(APPWRITE_PROJECT)
+    appwrite_client.set_key(APPWRITE_KEY)
+    appwrite_db = AppwriteDatabases(appwrite_client)
+except Exception as e:
+    print(f"Appwrite client init failed: {e}")
+
+
+# --- Appwrite helper functions ---
+def find_user_doc_by_email(email: str):
+    if not appwrite_db:
+        return None
+    try:
+        queries = [Query.equal("email", email)]
+        res = appwrite_db.list_documents(APPWRITE_DB, APPWRITE_COLLECTION, queries=queries)
+        docs = None
+        if isinstance(res, dict):
+            docs = res.get('documents')
+        else:
+            try:
+                docs = getattr(res, 'documents', None)
+            except Exception:
+                docs = None
+        if docs and len(docs) > 0:
+            return docs[0]
+        return None
+    except Exception as e:
+        print(f"Error finding user by email: {e}")
+        return None
+
+# --- New endpoints: signup, login, get user, save family ---
+class SignupModel(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class LoginModel(BaseModel):
+    email: str
+    password: str
+
+@app.post('/signup')
+def signup(data: SignupModel):
+    if not appwrite_db:
+        raise HTTPException(status_code=500, detail='Appwrite DB not configured')
+    # check exists
+    existing = find_user_doc_by_email(data.email)
+    if existing:
+        raise HTTPException(status_code=400, detail='Account already exists')
+    try:
+        doc_id = uuid4().hex
+        payload = {
+            'name': data.name,
+            'email': data.email,
+            'password': data.password,
+            'family_details': json.dumps([]),
+        }
+        created = appwrite_db.create_document(APPWRITE_DB, APPWRITE_COLLECTION, doc_id, payload)
+        return {'ok': True, 'id': created.get('$id') if isinstance(created, dict) else getattr(created, '$id', doc_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to create user: {e}')
+
+
+@app.post('/login')
+def login(data: LoginModel):
+    if not appwrite_db:
+        raise HTTPException(status_code=500, detail='Appwrite DB not configured')
+    doc = find_user_doc_by_email(data.email)
+    if not doc:
+        raise HTTPException(status_code=400, detail='No account found')
+    # doc may have 'password' field
+    stored_password = doc.get('password') if isinstance(doc, dict) else None
+    if stored_password != data.password:
+        raise HTTPException(status_code=401, detail='Invalid credentials')
+    # return user without exposing raw family_details string parsing
+    user = {
+        'id': doc.get('$id'),
+        'name': doc.get('name'),
+        'email': doc.get('email'),
+        'family': json.loads(doc.get('family_details') or '[]')
+    }
+    return user
+
+
+@app.get('/user')
+def get_user(email: str):
+    if not appwrite_db:
+        raise HTTPException(status_code=500, detail='Appwrite DB not configured')
+    doc = find_user_doc_by_email(email)
+    if not doc:
+        raise HTTPException(status_code=404, detail='User not found')
+    return {
+        'id': doc.get('$id'),
+        'name': doc.get('name'),
+        'email': doc.get('email'),
+        'family': json.loads(doc.get('family_details') or '[]'),
+        'most_used': doc.get('most_used') or '{}'
+    }
+
+
+@app.post('/save_family')
+def save_family(payload: dict):
+    if not appwrite_db:
+        raise HTTPException(status_code=500, detail='Appwrite DB not configured')
+    email = payload.get('email')
+    family = payload.get('family')
+    if not email or family is None:
+        raise HTTPException(status_code=400, detail='Missing email or family data')
+    doc = find_user_doc_by_email(email)
+    if not doc:
+        raise HTTPException(status_code=404, detail='User not found')
+    try:
+        doc_id = doc.get('$id')
+        update_payload = {'family_details': json.dumps(family)}
+        updated = appwrite_db.update_document(APPWRITE_DB, APPWRITE_COLLECTION, doc_id, update_payload)
+        return {'ok': True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to save family: {e}')
+
+
+@app.post('/save_ingredients')
+def save_ingredients(payload: dict):
+    if not appwrite_db:
+        raise HTTPException(status_code=500, detail='Appwrite DB not configured')
+    email = payload.get('email')
+    ingredients = payload.get('ingredients')
+    if not email or ingredients is None:
+        raise HTTPException(status_code=400, detail='Missing email or ingredients data')
+    doc = find_user_doc_by_email(email)
+    if not doc:
+        raise HTTPException(status_code=404, detail='User not found')
+    try:
+        # Get existing most_used data or initialize empty dict
+        most_used_str = doc.get('most_used') or '{}'
+        try:
+            most_used = json.loads(most_used_str)
+        except Exception:
+            most_used = {}
+        
+        # Increment count for each ingredient
+        for ing in ingredients:
+            most_used[ing] = most_used.get(ing, 0) + 1
+        
+        doc_id = doc.get('$id')
+        update_payload = {'most_used': json.dumps(most_used)}
+        updated = appwrite_db.update_document(APPWRITE_DB, APPWRITE_COLLECTION, doc_id, update_payload)
+        return {'ok': True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to save ingredients: {e}')
+
 
 # --- Groq API Integration ---
 try:

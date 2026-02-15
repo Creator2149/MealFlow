@@ -50,7 +50,7 @@
     color: #ff9800;
 }
 .accent-blue {
-    color: #7ec8e3;
+    color: #5bb0d9;
 }
 
 .accent-box-orange {
@@ -61,8 +61,8 @@
 }
 
 .accent-box-blue {
-    background: rgba(126, 200, 227, 0.08);
-    border: 1px solid rgba(126, 200, 227, 0.12);
+    background: rgba(91, 176, 217, 0.08);
+    border: 1px solid rgba(91, 176, 217, 0.12);
     padding: 1rem;
     border-radius: 12px;
 }

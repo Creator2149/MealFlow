@@ -3,72 +3,105 @@ document.addEventListener('DOMContentLoaded', () => {
     const page = window.location.pathname.split('/').pop();
 
     // --- AUTHENTICATION & DATA MGMT ---
-    const getUsers = () => JSON.parse(localStorage.getItem('mealFlowUsers') || '[]');
-    const saveUsers = (users) => localStorage.setItem('mealFlowUsers', JSON.stringify(users));
-    const getCurrentUserEmail = () => localStorage.getItem('mealFlowCurrentUser');
-    const setCurrentUserEmail = (email) => localStorage.setItem('mealFlowCurrentUser', email);
-    const logoutUser = () => localStorage.removeItem('mealFlowCurrentUser');
-
-    const getCurrentUser = () => {
-        const users = getUsers();
-        const email = getCurrentUserEmail();
-        return users.find((u) => u.email === email);
+    // --- STORAGE & USER HELPERS ---
+    // Use sessionStorage for current session data and backend (Appwrite) for persistent user records
+    const getCurrentUserEmail = () => sessionStorage.getItem('mealFlowCurrentUser');
+    const setCurrentUserEmail = (email) => sessionStorage.setItem('mealFlowCurrentUser', email);
+    const logoutUser = () => {
+        sessionStorage.removeItem('mealFlowCurrentUser');
+        sessionStorage.removeItem('mealFlowUser');
+        sessionStorage.removeItem('mealFlowPantry');
     };
 
-    const saveCurrentUser = (user) => {
-        if (!user) return;
-        const users = getUsers();
-        const index = users.findIndex((u) => u.email === user.email);
-        if (index > -1) {
-            users[index] = user;
-            saveUsers(users);
+    const getCurrentUser = () => {
+        try {
+            return JSON.parse(sessionStorage.getItem('mealFlowUser') || 'null');
+        } catch (e) {
+            return null;
         }
     };
 
-    // --- INGREDIENT DATA (Unchanged) ---
-    const ingredientsData = {
-        Vegetables: [
-            'Onion',
-            'Tomato',
-            'Potato',
-            'Carrot',
-            'Spinach',
-            'Cauliflower',
-            'Cabbage',
-            'Bell Pepper (Capsicum)',
-            'Eggplant (Brinjal)',
-            'Okra (Bhindi)',
-            'Green Peas',
-            'Ginger',
-            'Garlic',
-            'Green Chili',
-        ],
-        'Leafy Greens': ['Coriander Leaves', 'Mint Leaves', 'Fenugreek Leaves (Methi)', 'Curry Leaves'],
-        'Lentils & Pulses (Dal)': [
-            'Red Lentils (Masoor)',
-            'Yellow Pigeon Peas (Toor/Arhar)',
-            'Split Chickpeas (Chana Dal)',
-            'Green Gram (Moong)',
-            'Kidney Beans (Rajma)',
-            'Chickpeas (Chole)',
-        ],
-        Grains: ['Basmati Rice', 'Whole Wheat Flour (Atta)', 'Semolina (Sooji/Rava)'],
-        'Dairy & Paneer': ['Yogurt (Dahi)', 'Paneer', 'Milk', 'Ghee', 'Butter'],
-        Spices: [
-            'Turmeric Powder',
-            'Red Chili Powder',
-            'Coriander Powder',
-            'Cumin Seeds',
-            'Mustard Seeds',
-            'Garam Masala',
-            'Asafoetida (Hing)',
-            'Cardamom',
-            'Cloves',
-            'Cinnamon',
-        ],
-        'Non-Vegetarian': ['Chicken', 'Mutton (Goat)', 'Fish', 'Eggs'],
-        Oils: ['Vegetable Oil', 'Mustard Oil'],
+    const setCurrentUser = (user) => {
+        if (!user) return;
+        sessionStorage.setItem('mealFlowUser', JSON.stringify(user));
+        if (user.email) setCurrentUserEmail(user.email);
     };
+
+    // --- Pantry (sessionStorage) helpers ---
+    const PANTRY_KEY = 'mealFlowPantry';
+    const getSessionPantry = () => {
+        try {
+            return JSON.parse(sessionStorage.getItem(PANTRY_KEY) || 'null') || { ingredients: [], mealType: 'Dinner' };
+        } catch (e) {
+            return { ingredients: [], mealType: 'Dinner' };
+        }
+    };
+    const setSessionPantry = (p) => sessionStorage.setItem(PANTRY_KEY, JSON.stringify(p));
+
+    // --- Global Language Helpers ---
+    const LANGUAGE_KEY = 'mealFlowLanguage';
+    const getGlobalLanguage = () => sessionStorage.getItem(LANGUAGE_KEY) || 'english';
+    const setGlobalLanguage = (lang) => {
+        sessionStorage.setItem(LANGUAGE_KEY, lang);
+        // Dispatch event to notify all listeners of language change
+        window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: lang } }));
+    };
+
+    // Backend helper to fetch user and update session cache
+    const fetchUserFromBackend = async (email) => {
+        try {
+            const resp = await fetch(`${API_BASE_URL}/user?email=${encodeURIComponent(email)}`);
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            // normalize to expected shape
+            const user = { name: data.name, email: data.email, family: data.family || [], id: data.id };
+            setCurrentUser(user);
+            return user;
+        } catch (e) {
+            console.error('Failed to fetch user from backend', e);
+            return null;
+        }
+    };
+
+    // --- INGREDIENT DATA (Loaded from CSV) ---
+    let ingredientsData = {}; // Will be populated by loadIngredientsFromCSV
+
+    async function loadIngredientsFromCSV() {
+        try {
+            const response = await fetch('ingredients.csv');
+            const csvText = await response.text();
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',');
+
+            const data = {};
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',');
+                const row = {};
+                headers.forEach((header, idx) => {
+                    row[header.trim()] = values[idx]?.trim() || '';
+                });
+
+                const section = row.section || 'Other';
+                if (!data[section]) data[section] = [];
+
+                data[section].push({
+                    english_name: row.english_name,
+                    hinglish_name: row.hinglish_name,
+                    hindi_name: row.hindi_name,
+                    section: section,
+                });
+            }
+
+            ingredientsData = data;
+        } catch (error) {
+            console.error('Error loading ingredients from CSV:', error);
+            ingredientsData = {}; // Fallback to empty
+        }
+    }
+
+    // Load ingredients on page start
+    loadIngredientsFromCSV();
 
     // --- ROUTING & PAGE INIT ---
     const protectedPages = ['dashboard.html', 'family.html', 'recipe.html'];
@@ -77,22 +110,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return; // Stop further execution
     }
 
-    // --- NAVBAR INJECTION & UI ---
-    // Load navbar on protected pages and index.html if logged in
-    if (getCurrentUserEmail()) {
-        loadNavbar();
-    } else if (page !== 'index.html' && page !== '') {
-        loadNavbar();
-    }
-
     async function loadNavbar() {
         const navbarPlaceholder = document.getElementById('navbar-placeholder');
-        // Only load the navbar on pages that have the placeholder
         if (navbarPlaceholder) {
             try {
                 const response = await fetch('_navbar.html');
                 const navbarHTML = await response.text();
-                navbarPlaceholder.innerHTML = navbarHTML;
+                console.log('Fetched navbarHTML:', navbarHTML.substring(0, 500) + '...'); // Log first 500 chars
+
+                // Create a temporary div to parse the navbar HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = navbarHTML;
+
+                // Append children of the temporary div to the navbarPlaceholder
+                // This ensures the <nav> element and its contents are properly parsed
+                while (tempDiv.firstChild) {
+                    navbarPlaceholder.appendChild(tempDiv.firstChild);
+                }
+
                 setupNavbar();
             } catch (error) {
                 console.error('Error loading navbar:', error);
@@ -161,6 +196,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // --- Language Toggle Setup ---
+        const currentLanguage = getGlobalLanguage();
+        const langBtns = document.querySelectorAll('.navbar-lang-btn');
+        const navbarPlaceholder = document.getElementById('navbar-placeholder'); // Re-get placeholder
+        if (navbarPlaceholder) {
+            const langBtnsInPlaceholder = navbarPlaceholder.querySelectorAll('.navbar-lang-btn');
+            console.log('Language buttons found (global query):', langBtns.length);
+            console.log('Language buttons found (in placeholder):', langBtnsInPlaceholder.length);
+        } else {
+            console.log('Navbar placeholder not found during setupNavbar.');
+        }
+
+        langBtns.forEach((btn) => {
+            if (btn.dataset.lang === currentLanguage) {
+                btn.classList.add('selected', 'bg-[#5BB0D9]', 'text-white');
+                btn.classList.remove('bg-gray-200', 'text-gray-800');
+            }
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.navbar-lang-btn').forEach((b) => {
+                    b.classList.remove('selected', 'bg-[#5BB0D9]', 'text-white');
+                    b.classList.add('bg-gray-200', 'text-gray-800');
+                });
+                e.target.classList.add('selected', 'bg-[#5BB0D9]', 'text-white');
+                e.target.classList.remove('bg-gray-200', 'text-gray-800');
+                setGlobalLanguage(e.target.dataset.lang);
+                console.log('Language changed to:', e.target.dataset.lang);
+            });
+        });
+
         // FontAwesome is linked in the HTML directly, no JS rendering needed here
     }
 
@@ -223,50 +287,65 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Login form submission
+        // Login form submission (now requires email + password and uses backend)
         if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
+            loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const users = getUsers();
                 const email = document.getElementById('modal-login-email').value;
-                const user = users.find((u) => u.email === email);
-
-                if (user) {
-                    setCurrentUserEmail(email);
+                const password = document.getElementById('modal-login-password').value;
+                try {
+                    const resp = await fetch(`${API_BASE_URL}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password }),
+                    });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({}));
+                        alert(err.detail || 'Login failed');
+                        return;
+                    }
+                    const user = await resp.json();
+                    setCurrentUser(user);
                     window.location.href = 'family.html';
-                } else {
-                    alert('No account found with this email. Please sign up.');
+                } catch (err) {
+                    console.error('Login error', err);
+                    alert('Login failed. Check console for details.');
                 }
             });
         }
 
-        // Signup form submission
+        // Signup form submission (saves to backend DB)
         if (signupForm) {
-            signupForm.addEventListener('submit', (e) => {
+            signupForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const users = getUsers();
                 const name = document.getElementById('modal-signup-name').value;
                 const email = document.getElementById('modal-signup-email').value;
-
-                if (users.some((u) => u.email === email)) {
-                    alert('An account with this email already exists. Please log in.');
-                    return;
+                const password = document.getElementById('modal-signup-password').value;
+                try {
+                    const resp = await fetch(`${API_BASE_URL}/signup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, email, password }),
+                    });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({}));
+                        alert(err.detail || 'Signup failed');
+                        return;
+                    }
+                    // fetch user record and set session
+                    const user = await fetchUserFromBackend(email);
+                    if (user) {
+                        setCurrentUser(user);
+                        window.location.href = 'family.html';
+                    } else {
+                        // fallback: set basic user
+                        setCurrentUser({ name, email, family: [] });
+                        window.location.href = 'family.html';
+                    }
+                } catch (err) {
+                    console.error('Signup error', err);
+                    alert('Signup failed. Check console for details.');
                 }
-
-                const newUser = {
-                    name: name,
-                    email: email,
-                    family: [],
-                    pantry: {
-                        ingredients: [],
-                        mealType: 'Dinner',
-                    },
-                };
-
-                users.push(newUser);
-                saveUsers(users);
-                setCurrentUserEmail(email);
-                window.location.href = 'family.html';
             });
         }
     }
@@ -352,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formTitle.textContent = 'Add a New Member';
             submitBtn.textContent = 'Add Member';
             submitBtn.classList.replace('bg-[#5BB0D9]', 'bg-[#FF9800]');
-            submitBtn.classList.replace('hover:bg-[#7EC8E3]', 'hover:bg-[#FB8C00]');
+            submitBtn.classList.replace('hover:bg-[#7EC8E3]', 'hover:bg-[#2A76A0]');
         };
 
         form.addEventListener('submit', (e) => {
@@ -379,9 +458,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 user.family.push(memberData);
             }
 
-            saveCurrentUser(user);
-            renderFamilyList();
-            resetForm();
+            // Persist to backend and update session cache
+            (async () => {
+                try {
+                    const resp = await fetch(`${API_BASE_URL}/save_family`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: user.email, family: user.family }),
+                    });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({}));
+                        alert(err.detail || 'Failed to save family.');
+                        return;
+                    }
+                    // update session cache
+                    setCurrentUser(user);
+                    renderFamilyList();
+                    resetForm();
+                } catch (e) {
+                    console.error('Error saving family:', e);
+                    alert('Error saving family. See console.');
+                }
+            })();
         });
 
         if (clearBtn) {
@@ -398,8 +496,25 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn.classList.contains('delete-btn')) {
                 if (confirm('Are you sure you want to delete this family member?')) {
                     user.family = user.family.filter((m) => m.id !== id);
-                    saveCurrentUser(user);
-                    renderFamilyList();
+                    (async () => {
+                        try {
+                            const resp = await fetch(`${API_BASE_URL}/save_family`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: user.email, family: user.family }),
+                            });
+                            if (!resp.ok) {
+                                const err = await resp.json().catch(() => ({}));
+                                alert(err.detail || 'Failed to delete member.');
+                                return;
+                            }
+                            setCurrentUser(user);
+                            renderFamilyList();
+                        } catch (e) {
+                            console.error('Error deleting member:', e);
+                            alert('Error deleting member. See console.');
+                        }
+                    })();
                 }
             } else if (btn.classList.contains('edit-btn')) {
                 const member = user.family.find((m) => m.id === id);
@@ -417,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     formTitle.textContent = `Editing ${member.name}`;
                     submitBtn.textContent = 'Update Member';
                     submitBtn.classList.replace('bg-[#FF9800]', 'bg-[#5BB0D9]');
-                    submitBtn.classList.replace('hover:bg-[#FB8C00]', 'hover:bg-[#7EC8E3]');
+                    submitBtn.classList.replace('hover:bg-[#FB8C00]', 'hover:bg-[#2A76A0]');
 
                     form.scrollIntoView({ behavior: 'smooth' });
                 }
@@ -431,51 +546,191 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. DASHBOARD PAGE (dashboard.html)
     // ===================================
     function initDashboardPage() {
+        console.log('initDashboardPage called');
         const user = getCurrentUser();
-        if (!user.pantry) user.pantry = { ingredients: [], mealType: 'Dinner' };
+        console.log('Current user:', user);
+        // Use application-wide session pantry (no per-user key required)
+        const pantry = getSessionPantry();
 
         const listContainer = document.getElementById('ingredient-list-container');
         const previewContainer = document.getElementById('selected-ingredients-preview');
         const searchInput = document.getElementById('ingredient-search');
         const mealTypeSelector = document.getElementById('meal-type-selector');
+        const generateLink = document.getElementById('generate-link');
+
+        let mostUsed = {}; // Will be populated from user data
+
+        // Load most_used from user data
+        const loadMostUsed = async () => {
+            if (!user || !user.email) return;
+            try {
+                const resp = await fetch(`${API_BASE_URL}/user?email=${encodeURIComponent(user.email)}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    const mostUsedStr = data.most_used || '{}';
+                    mostUsed = JSON.parse(mostUsedStr);
+                    console.log('Loaded mostUsed:', mostUsed);
+                } else {
+                    console.error('Failed to fetch user:', resp.statusText);
+                }
+            } catch (e) {
+                console.error('Error loading most_used:', e);
+            }
+        };
+
+        // Save ingredients to backend when Generate Meal is clicked
+        if (generateLink) {
+            generateLink.addEventListener('click', async (e) => {
+                if (!user || !user.email || pantry.ingredients.length === 0) return;
+                try {
+                    await fetch(`${API_BASE_URL}/save_ingredients`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: user.email, ingredients: pantry.ingredients }),
+                    });
+                } catch (e) {
+                    console.error('Error saving ingredients:', e);
+                }
+            });
+        }
+
+        const getIngredientName = (ingredient) => {
+            const lang = getGlobalLanguage();
+            if (lang === 'hinglish') return ingredient.hinglish_name;
+            if (lang === 'hindi') return ingredient.hindi_name;
+            return ingredient.english_name;
+        };
+
+        // Get the key used to store ingredients (using english name as the standard)
+        const getIngredientKey = (ingredient) => {
+            return ingredient.english_name;
+        };
+
+        // Get top recent ingredients with frequency threshold
+        // Inject Recents section into ingredientsData based on mostUsed
+        const injectRecentsIntoIngredients = () => {
+            const recentsList = [];
+            console.log('injectRecentsIntoIngredients called with mostUsed:', mostUsed);
+            console.log('ingredientsData sections:', Object.keys(ingredientsData));
+
+            for (const [engName, count] of Object.entries(mostUsed)) {
+                if (count >= 2) {
+                    // Find the ingredient in ingredientsData
+                    for (const section of Object.values(ingredientsData)) {
+                        const ing = section.find((i) => i.english_name === engName);
+                        if (ing) {
+                            recentsList.push({ ...ing, count });
+                            break;
+                        }
+                    }
+                }
+            }
+
+            console.log('Recents list to inject:', recentsList);
+
+            // If there are recents, add them as a section at the top
+            if (recentsList.length > 0) {
+                recentsList.sort((a, b) => b.count - a.count);
+                const newData = { Recents: recentsList };
+                // Add all other sections
+                for (const [sectionName, items] of Object.entries(ingredientsData)) {
+                    newData[sectionName] = items;
+                }
+                ingredientsData = newData;
+                console.log(
+                    'Injected Recents section, ingredientsData now has sections:',
+                    Object.keys(ingredientsData),
+                );
+            } else {
+                console.log('No recents to inject');
+            }
+        };
 
         const renderIngredients = (filter = '') => {
             listContainer.innerHTML = '';
             const filterLower = filter.toLowerCase();
 
-            Object.keys(ingredientsData).forEach((category) => {
-                const filtered = ingredientsData[category].filter((ing) => ing.toLowerCase().includes(filterLower));
+            Object.keys(ingredientsData).forEach((section) => {
+                const items = ingredientsData[section];
+                const filtered = items.filter((ing) => {
+                    const searchStr = `${ing.english_name} ${ing.hinglish_name} ${ing.hindi_name}`.toLowerCase();
+                    return searchStr.includes(filterLower);
+                });
+
                 if (filtered.length > 0) {
-                    const categoryDiv = document.createElement('div');
-                    categoryDiv.innerHTML = `<h3 class="text-xl font-bold mb-3 text-gray-700">${category}</h3>`;
-                    const grid = document.createElement('div');
-                    grid.className = 'grid grid-cols-2 sm:grid-cols-3 gap-2';
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.className = 'mb-6';
+                    const sectionTitle = section === 'Recents' ? '⭐ Recents' : section;
+                    const sectionClass = section === 'Recents' ? 'text-orange-600' : 'text-gray-700';
+                    sectionDiv.innerHTML = `<h3 class="text-xl font-bold mb-4 ${sectionClass}">${sectionTitle}</h3>`;
+
+                    const list = document.createElement('div');
+                    list.className = 'space-y-2';
+
                     filtered.forEach((ingredient) => {
-                        const isChecked = user.pantry.ingredients.includes(ingredient);
-                        grid.innerHTML += `
-                            <label class="ingredient-checkbox-label flex items-center space-x-3 p-2 rounded-lg">
-                                <input type="checkbox" value="${ingredient}" ${isChecked ? 'checked' : ''} class="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500">
-                                <span>${ingredient}</span>
-                                <i class="checkmark w-5 h-5 text-green-500 ml-auto fas fa-check-circle opacity-0 transition-opacity"></i>
-                            </label>
+                        const key = getIngredientKey(ingredient);
+                        const isChecked = pantry.ingredients.includes(key);
+                        const displayName = getIngredientName(ingredient);
+                        const countText = ingredient.count ? ` (used ${ingredient.count}x)` : '';
+
+                        const row = document.createElement('div');
+                        row.className = `ingredient-row p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            isChecked
+                                ? 'bg-orange-100 border-orange-500'
+                                : 'bg-white border-gray-200 hover:border-orange-300'
+                        }`;
+                        row.dataset.ingredient = key;
+                        row.innerHTML = `
+                            <div class="flex items-center justify-between">
+                                <div class="flex-grow">
+                                    <span class="font-medium text-gray-800">${displayName}</span>
+                                    ${countText ? `<span class="text-xs text-gray-500 ml-2">${countText}</span>` : ''}
+                                </div>
+                                <i class="w-5 h-5 ${isChecked ? 'text-orange-500 fas fa-check-circle' : 'text-gray-300 fas fa-circle'}"></i>
+                            </div>
                         `;
+
+                        row.addEventListener('click', () => {
+                            const isCurrentlyChecked = pantry.ingredients.includes(key);
+                            if (isCurrentlyChecked) {
+                                pantry.ingredients = pantry.ingredients.filter((i) => i !== key);
+                            } else {
+                                pantry.ingredients.push(key);
+                            }
+                            setSessionPantry(pantry);
+                            renderIngredients(searchInput.value);
+                            renderPreview();
+                        });
+
+                        list.appendChild(row);
                     });
-                    categoryDiv.appendChild(grid);
-                    listContainer.appendChild(categoryDiv);
+
+                    sectionDiv.appendChild(list);
+                    listContainer.appendChild(sectionDiv);
                 }
             });
         };
 
         const renderPreview = () => {
             previewContainer.innerHTML = '';
-            if (user.pantry.ingredients.length === 0) {
+            if (pantry.ingredients.length === 0) {
                 previewContainer.innerHTML = '<p class="text-gray-400">Select ingredients to see them here.</p>';
                 return;
             }
             const list = document.createElement('div');
             list.className = 'flex flex-wrap gap-2';
-            user.pantry.ingredients.forEach((ing) => {
-                list.innerHTML += `<span class="bg-orange-100 text-orange-800 text-sm font-semibold px-3 py-1 rounded-full">${ing}</span>`;
+            pantry.ingredients.forEach((ingKey) => {
+                // Find the ingredient to get its display name
+                let displayName = ingKey;
+                outer: for (const section of Object.values(ingredientsData)) {
+                    for (const ing of section) {
+                        if (ing.english_name === ingKey) {
+                            displayName = getIngredientName(ing);
+                            break outer;
+                        }
+                    }
+                }
+                list.innerHTML += `<span class="bg-orange-100 text-orange-800 text-sm font-semibold px-3 py-1 rounded-full">${displayName}</span>`;
             });
             previewContainer.appendChild(list);
         };
@@ -483,7 +738,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const updateMealTypeSelection = () => {
             document.querySelectorAll('.meal-type-label').forEach((label) => {
                 const input = label.querySelector('input');
-                if (input.value === user.pantry.mealType) {
+                if (input.value === pantry.mealType) {
                     label.classList.add('selected');
                     input.checked = true;
                 } else {
@@ -492,28 +747,28 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
-        searchInput.addEventListener('input', () => renderIngredients(searchInput.value));
+        // Initialize dashboard - await loading data first
+        (async () => {
+            await loadMostUsed();
+            injectRecentsIntoIngredients(); // Inject Recents as a normal section
+            searchInput.addEventListener('input', () => renderIngredients(searchInput.value));
 
-        listContainer.addEventListener('change', (e) => {
-            const ingredient = e.target.value;
-            const isChecked = e.target.checked;
-            const currentIngredients = new Set(user.pantry.ingredients);
-            if (isChecked) currentIngredients.add(ingredient);
-            else currentIngredients.delete(ingredient);
-            user.pantry.ingredients = Array.from(currentIngredients);
-            saveCurrentUser(user);
+            mealTypeSelector.addEventListener('change', (e) => {
+                pantry.mealType = e.target.value;
+                setSessionPantry(pantry);
+                updateMealTypeSelection();
+            });
+
+            // Listen for global language changes
+            window.addEventListener('languageChanged', () => {
+                renderIngredients(searchInput.value);
+                renderPreview();
+            });
+
+            renderIngredients();
             renderPreview();
-        });
-
-        mealTypeSelector.addEventListener('change', (e) => {
-            user.pantry.mealType = e.target.value;
-            saveCurrentUser(user);
             updateMealTypeSelection();
-        });
-
-        renderIngredients();
-        renderPreview();
-        updateMealTypeSelection();
+        })();
     }
 
     // ===================================
@@ -523,6 +778,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const recipeContainer = document.getElementById('recipe-container');
         const loadingDiv = document.getElementById('loading-state');
         const errorDiv = document.getElementById('error-state');
+        // read pantry from sessionStorage (accessible to renderRecipe)
+        let pantry = getSessionPantry();
 
         const fetchAndRenderRecipe = async () => {
             const user = getCurrentUser();
@@ -535,13 +792,16 @@ document.addEventListener('DOMContentLoaded', () => {
             errorDiv.classList.add('hidden');
 
             try {
+                // refresh pantry from sessionStorage before generating
+                pantry = getSessionPantry();
+
                 const response = await fetch(`${API_BASE_URL}/generate_meal`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         family_members: user.family,
-                        ingredients: user.pantry.ingredients,
-                        mealType: user.pantry.mealType,
+                        ingredients: pantry.ingredients,
+                        mealType: pantry.mealType,
                         dayOfWeek: new Date().toLocaleString('en-us', { weekday: 'long' }),
                     }),
                 });
@@ -599,8 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const user = getCurrentUser();
             // Safely extract fields with fallbacks to avoid undefined errors
             const meal = data && data.meal ? data.meal : { name: 'Untitled Meal', type: 'unknown', why_this_meal: '' };
-            const pantryMealType =
-                (data && data.pantry && data.pantry.mealType) || (user && user.pantry && user.pantry.mealType) || '';
+            const pantryMealType = (data && data.pantry && data.pantry.mealType) || (pantry && pantry.mealType) || '';
             const totalTime =
                 data && data.recipe && data.recipe.total_time_minutes ? data.recipe.total_time_minutes : 'N/A';
             const ingredientsUsed = Array.isArray(data && data.ingredients_used) ? data.ingredients_used : [];
@@ -657,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                     </div>
-                     <div class="p-8 text-center">
+                            <div class="p-8 text-center space-x-4">
                         <button id="regenerate-btn" class="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600">Regenerate Meal</button>
                     </div>
                 </div>
@@ -713,17 +972,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- PAGE INITIALIZATION ---
     // Call the appropriate init function depending on current page
-    const currentPage = page || 'index.html';
-    if (currentPage === '' || currentPage === 'index.html') {
-        initHomePage();
-    } else if (currentPage === 'family.html') {
-        loadNavbar();
-        initFamilyPage();
-    } else if (currentPage === 'dashboard.html') {
-        loadNavbar();
-        initDashboardPage();
-    } else if (currentPage === 'recipe.html') {
-        loadNavbar();
-        initRecipePage();
-    }
+    (async () => {
+        const currentPage = page || 'index.html';
+        const user = getCurrentUser(); // Get user state
+
+        // Load navbar if current page is not index.html (and not an empty string),
+        // or if the user is logged in (to display navbar on index.html for logged-in users).
+        if ((currentPage !== 'index.html' && currentPage !== '') || (user && (currentPage === 'index.html' || currentPage === ''))) {
+            await loadNavbar();
+        }
+
+        // Ensure CSV is loaded before rendering dashboard
+        if (currentPage === 'dashboard.html') {
+            await loadIngredientsFromCSV();
+        }
+
+        if (currentPage === '' || currentPage === 'index.html') {
+            initHomePage();
+        } else if (currentPage === 'family.html') {
+            initFamilyPage();
+        } else if (currentPage === 'dashboard.html') {
+            initDashboardPage();
+        } else if (currentPage === 'recipe.html') {
+            initRecipePage();
+        }
+    })();
 });
