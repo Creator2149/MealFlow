@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const API_BASE_URL = 'http://192.168.1.12:8000'; // Backend API host (set to local dev IP)
+    const API_BASE_URL = 'https://mealflow-vopg.onrender.com'; // Backend API host running on render
     const page = window.location.pathname.split('/').pop();
 
     // --- AUTHENTICATION & DATA MGMT ---
