@@ -653,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (filtered.length > 0) {
                     const sectionDiv = document.createElement('div');
                     sectionDiv.className = 'mb-6';
-                    const sectionTitle = section === 'Recents' ? '⭐ Recents' : section;
+                    const sectionTitle = section === 'Recents' ? 'Recents' : section;
                     const sectionClass = section === 'Recents' ? 'text-orange-600' : 'text-gray-700';
                     sectionDiv.innerHTML = `<h3 class="text-xl font-bold mb-4 ${sectionClass}">${sectionTitle}</h3>`;
 

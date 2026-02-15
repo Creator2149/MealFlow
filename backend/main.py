@@ -2,6 +2,7 @@ import os
 import json
 import re
 import httpx
+import bcrypt
 from groq import Groq
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -114,10 +115,11 @@ def signup(data: SignupModel):
         raise HTTPException(status_code=400, detail='Account already exists')
     try:
         doc_id = uuid4().hex
+        hashed_password = bcrypt.hashpw(data.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         payload = {
             'name': data.name,
             'email': data.email,
-            'password': data.password,
+            'password': hashed_password,
             'family_details': json.dumps([]),
         }
         created = appwrite_db.create_document(APPWRITE_DB, APPWRITE_COLLECTION, doc_id, payload)
@@ -135,7 +137,7 @@ def login(data: LoginModel):
         raise HTTPException(status_code=400, detail='No account found')
     # doc may have 'password' field
     stored_password = doc.get('password') if isinstance(doc, dict) else None
-    if stored_password != data.password:
+    if not stored_password or not bcrypt.checkpw(data.password.encode('utf-8'), stored_password.encode('utf-8')):
         raise HTTPException(status_code=401, detail='Invalid credentials')
     # return user without exposing raw family_details string parsing
     user = {
