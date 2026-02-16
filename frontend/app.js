@@ -549,6 +549,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user.email, ingredients: pantry.ingredients }),
                     });
+                    // After saving, reload most_used and update Recents
+                    await loadMostUsed();
+                    injectRecentsIntoIngredients();
+                    renderIngredients(searchInput.value);
                 } catch (e) {
                     console.error('Error saving ingredients:', e);
                 }
