@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const API_BASE_URL = 'https://mealflow-vopg.onrender.com'; // Backend API host running on render
+    const API_BASE_URL = 'http://127.0.0.1:8000'; // Backend API host running on render
     const page = window.location.pathname.split('/').pop();
 
     // --- AUTHENTICATION & DATA MGMT ---
@@ -604,42 +604,33 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // Get top recent ingredients with frequency threshold
-        // Inject Recents section into ingredientsData based on mostUsed
+        // Inject Recents section into ingredientsData based on mostUsed (top 10 by usage)
         const injectRecentsIntoIngredients = () => {
             const recentsList = [];
-            console.log('injectRecentsIntoIngredients called with mostUsed:', mostUsed);
-            console.log('ingredientsData sections:', Object.keys(ingredientsData));
-
+            // Collect all ingredients with their usage count
             for (const [engName, count] of Object.entries(mostUsed)) {
-                if (count >= 2) {
-                    // Find the ingredient in ingredientsData
-                    for (const section of Object.values(ingredientsData)) {
-                        const ing = section.find((i) => i.english_name === engName);
-                        if (ing) {
-                            recentsList.push({ ...ing, count });
-                            break;
-                        }
+                // Find the ingredient in ingredientsData
+                for (const section of Object.values(ingredientsData)) {
+                    const ing = section.find((i) => i.english_name === engName);
+                    if (ing) {
+                        recentsList.push({ ...ing, count });
+                        break;
                     }
                 }
             }
 
-            console.log('Recents list to inject:', recentsList);
+            // Sort by count descending and take top 10
+            recentsList.sort((a, b) => b.count - a.count);
+            const topRecents = recentsList.slice(0, 10);
 
             // If there are recents, add them as a section at the top
-            if (recentsList.length > 0) {
-                recentsList.sort((a, b) => b.count - a.count);
-                const newData = { Recents: recentsList };
+            if (topRecents.length > 0) {
+                const newData = { Recents: topRecents };
                 // Add all other sections
                 for (const [sectionName, items] of Object.entries(ingredientsData)) {
                     newData[sectionName] = items;
                 }
                 ingredientsData = newData;
-                console.log(
-                    'Injected Recents section, ingredientsData now has sections:',
-                    Object.keys(ingredientsData),
-                );
-            } else {
-                console.log('No recents to inject');
             }
         };
 
