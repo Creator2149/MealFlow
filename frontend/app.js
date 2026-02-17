@@ -492,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     formTitle.textContent = `Editing ${member.name}`;
                     submitBtn.textContent = 'Update Member';
                     submitBtn.classList.replace('bg-[#FF9800]', 'bg-[#5BB0D9]');
-                    submitBtn.classList.replace('hover:bg-[#FB8C00]', 'hover:bg-[#2A76A0]');
+                    submitBtn.classList.replace('hover:bg-[#C66E00]', 'hover:bg-[#2A76A0]');
 
                     form.scrollIntoView({ behavior: 'smooth' });
                 }
