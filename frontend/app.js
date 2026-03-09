@@ -278,6 +278,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (signupForm) {
             signupForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                const consentCheckbox = document.getElementById('consent-checkbox');
+                if (!consentCheckbox || !consentCheckbox.checked) {
+                    consentCheckbox?.focus();
+                    alert('You must consent to sharing your family data with AI to sign up.');
+                    return;
+                }
                 const name = document.getElementById('modal-signup-name').value;
                 const email = document.getElementById('modal-signup-email').value;
                 const password = document.getElementById('modal-signup-password').value;

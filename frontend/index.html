@@ -117,6 +117,13 @@
                     transform: scale(0.88);
                 }
             }
+            /* Responsive tweak for consent checkbox label */
+            @media (max-width: 480px) {
+                #signup-section label[for='consent-checkbox'] {
+                    font-size: 0.95rem;
+                    margin-left: 0.5rem;
+                }
+            }
         </style>
     </head>
     <body class="bg-[#FAF9F6] text-[#1C1C1C] min-h-screen flex flex-col">
@@ -274,6 +281,25 @@
                                 required
                                 class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#5BB0D9]"
                             />
+                        </div>
+                        <!-- T&C Consent Checkbox -->
+                        <div class="mb-6 flex items-start">
+                            <input
+                                type="checkbox"
+                                id="consent-checkbox"
+                                name="consent-checkbox"
+                                required
+                                class="mt-1 h-5 w-5 text-[#5BB0D9] border-gray-300 rounded focus:ring-2 focus:ring-[#5BB0D9]"
+                                style="min-width: 1.25rem; min-height: 1.25rem"
+                            />
+                            <label
+                                for="consent-checkbox"
+                                class="ml-3 text-sm text-gray-700 select-none"
+                                style="line-height: 1.4"
+                            >
+                                I consent to sharing my family data such as age, dietary preferences, and allergies with
+                                Artificial Intelligence (AI) for personalized meal recommendations
+                            </label>
                         </div>
                         <button
                             type="submit"
