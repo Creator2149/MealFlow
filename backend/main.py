@@ -1,6 +1,5 @@
 import os
 import json
-import re
 import httpx
 import bcrypt
 from groq import Groq
@@ -10,6 +9,21 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date
 from uuid import uuid4
+
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+import requests
+import urllib3
+
+urllib3.disable_warnings()
+
+old_request = requests.Session.request
+
+def new_request(self, *args, **kwargs):
+    kwargs['verify'] = False
+    return old_request(self, *args, **kwargs)
+
+requests.Session.request = new_request
 
 # Appwrite imports
 from appwrite.client import Client as AppwriteClient
